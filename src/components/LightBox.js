@@ -1,10 +1,17 @@
-import React, { useState } from "react";
-import { CircularProgress, Modal, IconButton } from "@mui/material";
+import React, { useState, useEffect, useRef } from "react";
+import { CircularProgress, Modal, IconButton, ButtonGroup, Tooltip } from "@mui/material";
 import { createStyles, makeStyles } from "@mui/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import "./index.css";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import DownloadIcon from "@mui/icons-material/Download";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
+import ZoomInIcon from "@mui/icons-material/ZoomIn";
+import ZoomOutIcon from "@mui/icons-material/ZoomOut";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import FacebookIcon from "@mui/icons-material/Facebook";
 const useStyles = makeStyles((theme) =>
   createStyles({
     root: {
@@ -28,20 +35,30 @@ const useStyles = makeStyles((theme) =>
       objectFit: "cover",
     },
     arrowButton: {
-      color: "#ffffff9e",
+      color: "#ffffff",
       "&:hover": {
         backgroundColor: "#808080",
       },
-      backgroundColor: "#696969",
+      // backgroundColor: "#000000",
     },
     audioPlayer: {
       alignItems: "center",
       justifyContent: "center",
-      width: "30%",
+      // width: "30%",
       height: "auto",
     },
     circular: {
       alignItems: "center",
+      justifyContent: "center",
+    },
+    widget: {
+      marginRight: 20,
+      zIndex: 999999,
+    },
+    caption: {
+      color: "#fff",
+      marginTop: -1,
+      display: "flex",
       justifyContent: "center",
     },
   })
@@ -49,17 +66,46 @@ const useStyles = makeStyles((theme) =>
 
 export default function LightBox(props) {
   const classes = useStyles();
+  const inputRef = useRef();
   const { mediaItems, callback, parentShowNext, parentShowPrev } = props;
-  const [toggler, setToggler] = useState(true);
-  const [currentSlide, setCurrentSlide] = useState(props.currentSlide);
-  const [media, setMedia] = useState(mediaItems[currentSlide].media);
-  
-
+  const [ toggler, setToggler ] = useState(true);
+  const [ currentSlide, setCurrentSlide ] = useState(props.currentSlide);
+  const [ media, setMedia ] = useState(mediaItems[ currentSlide ].media);
+  const [ downloadMediaUrl, setDownloadMediaUrl ] = useState('');
+  const [ scale, setScale ] = useState(1);
+  const [ isScalable, setIsScalable ] = useState(false);
+  const setToFullScreen = () => {
+    const el = inputRef.current;
+    console.log(el);
+    if (el.requestFullscreen) {
+      el.requestFullscreen();
+    } else if (el.msRequestFullscreen) {
+      el.msRequestFullscreen();
+    } else if (el.mozRequestFullScreen) {
+      el.mozRequestFullScreen();
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+    }
+  };
   const toggleIsOpen = () => {
-    console.log('toggle is open', toggler);
+    console.log("toggle is open", toggler);
     setToggler(!toggler);
     callback();
   };
+  useEffect(() => {
+    console.log("set media items", mediaItems[ currentSlide ].media);
+    if (mediaItems[ currentSlide ].type === "VIDEO" || mediaItems[ currentSlide ].type === "IMAGE") {
+      setIsScalable(true);
+    } else {
+      setIsScalable(false);
+    }
+    const mediaUrl = mediaItems[ currentSlide ].media;
+    fetch(mediaUrl).then(res => res.blob()).then(data => {
+      const blobUrl = URL.createObjectURL(data);
+      setDownloadMediaUrl(blobUrl);
+    });
+    setMedia(mediaItems[ currentSlide ].media);
+  }, [mediaItems, currentSlide]);
 
   const showPrev = (e) => {
     e.stopPropagation();
@@ -70,7 +116,20 @@ export default function LightBox(props) {
       currentIndex = currentIndex - 1;
     }
     setCurrentSlide(currentIndex);
-    setMedia(mediaItems[currentIndex].media);
+    if (mediaItems[ currentIndex ].type === "VIDEO" || mediaItems[ currentIndex ].type === "IMAGE") {
+      setIsScalable(true);
+    } else {
+      setIsScalable(false);
+    }
+    fetch(media).then(res => res.blob()).then(data => {
+      const blobUrl = URL.createObjectURL(data);
+      setDownloadMediaUrl(blobUrl);
+    });
+    fetch(media).then(res => res.blob()).then(data => {
+      const blobUrl = URL.createObjectURL(data);
+      setDownloadMediaUrl(blobUrl);
+    });
+    setMedia(mediaItems[ currentIndex ].media);
     parentShowPrev(e);
   };
   const showNext = (e) => {
@@ -83,15 +142,40 @@ export default function LightBox(props) {
       currentIndex = currentIndex + 1;
     }
     setCurrentSlide(currentIndex);
-    console.log("currentSlide after ", currentIndex, currentSlide);
-    setMedia(mediaItems[currentIndex].media);
+    console.log("currentSlide after ", currentIndex, currentSlide, mediaItems[ currentIndex ].type);
+    if (mediaItems[ currentIndex ].type === "VIDEO" || mediaItems[ currentIndex ].type === "IMAGE") {
+      setIsScalable(true);
+    } else {
+      setIsScalable(false);
+    }
+    fetch(media).then(res => res.blob()).then(data => {
+      const blobUrl = URL.createObjectURL(data);
+      setDownloadMediaUrl(blobUrl);
+    });
+    setMedia(mediaItems[ currentIndex ].media);
     //shownext chaining parent event method definition also.
     parentShowNext(e);
+  };
+  //Arrow keys handler
+  const keyDownHandler = (event) => {
+    console.log(event.code);
+    if (event.code === "ArrowLeft") {
+      showPrev(event);
+    }
+    if (event.code === "ArrowRight") {
+      showNext(event);
+    }
+  };
+  const ZoomIn = () => {
+    setScale(scale * 1.1);
+  };
+  const ZoomOut = () => {
+    setScale(scale / 1.1);
   };
   return (
     <>
       {toggler ? (
-        <Modal open={toggler} onClose={toggleIsOpen}>
+        <Modal open={toggler} onClose={toggleIsOpen} onKeyDown={keyDownHandler}>
           <div className="lsbox">
             <div className="lightbox-header">
               <div className="item-count">
@@ -99,10 +183,62 @@ export default function LightBox(props) {
                   {currentSlide + 1}/{mediaItems.length}
                 </h4>
               </div>
-              <div className="close-btn">
-                <IconButton onClick={toggleIsOpen} className={classes.arrowButton} size="small">
-                  <CloseIcon />
-                </IconButton>
+              <div className={classes.widget}>
+                <ButtonGroup disableElevation>
+                  <Tooltip title="Facebook" arrow>
+                    <IconButton onClick={()=>{
+                      window.open(
+                        "https://www.facebook.com/sharer/sharer.php?u=" +      media,
+                      );
+                    }} className={classes.arrowButton} size="small">
+                      <FacebookIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="LinkedIn" arrow>
+                    <IconButton onClick={()=>{
+                      window.open(
+                        "https://www.linkedin.com/sharing/share-offsite/?url=" + media,
+                      );
+                    }} className={classes.arrowButton} size="small">
+                      <LinkedInIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="WhatsApp" arrow>
+                    <IconButton onClick={()=>{
+                       window.open(`whatsapp://send?text=${media}`);
+                    }} className={classes.arrowButton} size="small">
+                      <WhatsAppIcon />
+                    </IconButton>
+                  </Tooltip>
+                  {isScalable ? <div> <Tooltip title="Zoom In" arrow>
+                    <IconButton onClick={ZoomIn} className={classes.arrowButton} size="small">
+                      <ZoomInIcon />
+                    </IconButton>
+                  </Tooltip>
+                    <Tooltip title="Zoom Out" arrow>
+                      <IconButton onClick={ZoomOut} className={classes.arrowButton} size="small">
+                        <ZoomOutIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Full Screen" arrow>
+                      <IconButton onClick={setToFullScreen} className={classes.arrowButton} size="small">
+                        <FullscreenIcon />
+                      </IconButton>
+                    </Tooltip> </div>
+                    : null}
+                  <a href={downloadMediaUrl} download>
+                     <Tooltip title="Download" arrow>
+                      <IconButton className={classes.arrowButton} size="small">
+                        <DownloadIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </a>
+                  <Tooltip title="Close" arrow>
+                    <IconButton onClick={toggleIsOpen} className={classes.arrowButton} size="small">
+                      <CloseIcon />
+                    </IconButton>
+                  </Tooltip>
+                </ButtonGroup>
               </div>
             </div>
             <div className="left">
@@ -111,21 +247,30 @@ export default function LightBox(props) {
               </IconButton>
             </div>
             {media ? (
-              <div style={{ display: "contents" }}>
-                {mediaItems[currentSlide].type === "IMAGE" ? (
-                  <>
+              <div style={{ display: "contents" }} ref={inputRef}>
+                {mediaItems[ currentSlide ].type === "IMAGE" ? (
+                  <div style={{ transform: `scale(${scale})` }}>
                     <img src={media} alt="Image Broken" className={classes.lightbox} />
-                  </>
-                ) : mediaItems[currentSlide].type === "VIDEO" ? (
-                  <div>
+                    <h5 className={classes.caption}>
+                      {mediaItems[ currentSlide ].caption ? mediaItems[ currentSlide ].caption : ""}
+                    </h5>
+                  </div>
+                ) : mediaItems[ currentSlide ].type === "VIDEO" ? (
+                  <div style={{ transform: `scale(${scale})` }}>
                     <video className={classes.lightbox} controls>
                       <source src={media} type="video/mp4" />
                       <source src={media} type="video/ogg" />
                     </video>
+                    <h5 className={classes.caption}>
+                      {mediaItems[ currentSlide ].caption ? mediaItems[ currentSlide ].caption : ""}
+                    </h5>
                   </div>
-                ) : mediaItems[currentSlide].type === "AUDIO" ? (
+                ) : mediaItems[ currentSlide ].type === "AUDIO" ? (
                   <div className={classes.audioPlayer}>
-                    <audio src={media} controls autoPlay />
+                    <audio src={media} controls />
+                    <h5 className={classes.caption}>
+                      {mediaItems[ currentSlide ].caption ? mediaItems[ currentSlide ].caption : ""}
+                    </h5>
                   </div>
                 ) : null}
               </div>
